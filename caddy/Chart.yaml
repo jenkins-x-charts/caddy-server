@@ -1,0 +1,9 @@
+apiVersion: v1
+appVersion: "0.11.1"
+description: A Helm chart for Caddy Server
+name: caddy
+version: 0.0.1
+home: https://caddyserver.com/
+maintainers:
+  - name: jstrachan
+    email: james.strachan@gmail.com

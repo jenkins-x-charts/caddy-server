@@ -1,0 +1,84 @@
+{{- $releaseName := .Release.Name }}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "caddy.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "caddy.name" . }}
+    helm.sh/chart: {{ include "caddy.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "caddy.name" . }}
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "caddy.name" . }}
+        release: {{ .Release.Name }}
+    spec:
+      initContainers:
+        - name: fix-volume-permissions
+          image: busybox
+          command: ["sh", "-c", "chown -R 1000:1000 /srv"]
+          resources:
+            requests:
+              memory: 1Gi
+              cpu: 1
+            limits:
+              memory: 1Gi
+              cpu: 1
+          volumeMounts:
+          - name: caddy-data
+            mountPath: /srv
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "cp /var/caddy/config/initialize-caddy.sh /var/caddy && sh /var/caddy/initialize-caddy.sh"]
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            - name: prometheus
+              containerPort: 9180
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 10
+            successThreshold: 1
+            timeoutSeconds: 5
+{{ if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: caddy-data
+              mountPath: /srv
+{{end}}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+    {{- with .Values.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+{{ if .Values.persistence.enabled }}
+      volumes:
+        - name: caddy-data
+          persistentVolumeClaim:
+            claimName: {{ $releaseName }}-{{ .name }}
+{{end}}

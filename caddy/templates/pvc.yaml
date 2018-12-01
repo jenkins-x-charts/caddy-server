@@ -1,0 +1,23 @@
+{{ if .Values.persistence.enabled }}
+{{- $releaseName := .Release.Name -}}
+{{- $releaseService := .Release.Service -}}
+{{- $caddyName := "caddy.name" -}}
+{{- $caddyChart := "caddy.chart" -}}
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ $releaseName }}
+  labels:
+    app.kubernetes.io/name: {{ $caddyName}}
+    helm.sh/chart: {{ $caddyChart }}
+    app.kubernetes.io/instance: {{ $releaseName }}
+    app.kubernetes.io/managed-by: {{ $releaseService }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{end}}
